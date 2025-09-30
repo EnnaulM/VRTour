@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Panoramic Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: #0f1b3a;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin: 20px 0 30px;
+            max-width: 800px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #fff;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            color: #a0a8c0;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 1000px;
+            gap: 25px;
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 25px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .panel-title {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            color: #fff;
+            font-weight: 500;
+        }
+        
+        .viewer-container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+        }
+        
+        #panoViewer {
+            width: 100%;
+            height: 100%;
+            outline: none;
+        }
+        
+        .upload-area {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        
+        .upload-area:hover {
+            border-color: #4cc9f0;
+            background: rgba(76, 201, 240, 0.05);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #4cc9f0;
+        }
+        
+        .upload-text {
+            margin-bottom: 10px;
+            color: #a0a8c0;
+        }
+        
+        .btn {
+            background: #4cc9f0;
+            color: #0f1b3a;
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #3ab0d6;
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            background: #2a4860;
+            color: #6a7a90;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-reset {
+            background: #7b68ee;
+            color: white;
+        }
+        
+        .btn-reset:hover {
+            background: #6a58d4;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0 10px;
+        }
+        
+        .status {
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .status.default {
+            background: rgba(255, 255, 255, 0.05);
+            color: #a0a8c0;
+        }
+        
+        .status.loading {
+            background: rgba(76, 201, 240, 0.1);
+            color: #4cc9f0;
+        }
+        
+        .status.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        
+        .status.success {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+        }
+        
+        .viewer-placeholder {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 1.1rem;
+            text-align: center;
+            padding: 20px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #4cc9f0;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+            display: none;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                margin: 10px 0 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .viewer-container {
+                height: 400px;
+            }
+            
+            .panel {
+                padding: 20px;
+            }
+        }
+        
+        @media (max-width: 500px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .viewer-container {
+                height: 300px;
+            }
+            
+            body {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Virtual Tour</h1>
+        
+    </div>
+    
+    <div class="container">
+        <div class="panel">
+            <div class="panel-title">Upload Image</div>
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">🌎</div>
+                <div class="upload-text">Click to upload image</div>
+                <div class="upload-subtext">or drag and drop your file here</div>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;">
+            </div>
+            
+            <div class="status default" id="uploadStatus">No image selected</div>
+            
+            <div class="loading-spinner" id="loadingSpinner"></div>
+            
+            <div class="controls">
+                <button class="btn" id="btnLoad" disabled>Load View</button>
+                <button class="btn btn-reset" id="btnReset">Reset View</button>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">Viewer</div>
+            <div class="viewer-container">
+                <div id="panoViewer"></div>
+                <div class="viewer-placeholder" id="placeholder">Upload an image to begin</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Three.js variables
+        let scene, camera, renderer, controls;
+        let sphere;
+        let isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        // Initialize the scene
+        function initScene() {
+            // Create scene
+            scene = new THREE.Scene();
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 0.1);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(document.getElementById('panoViewer').offsetWidth, 
+                            document.getElementById('panoViewer').offsetHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('panoViewer').appendChild(renderer.domElement);
+            
+            // Add controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.rotateSpeed = isMobile ? 0.5 : 0.8;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 0.1;
+            controls.maxDistance = 3;
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Start animation loop
+            animate();
+        }
+        
+        // Create panoramic sphere
+        function createPanorama(texture) {
+            // Remove existing sphere
+            if (sphere) scene.remove(sphere);
+            
+            // Create sphere geometry
+            const geometry = new THREE.SphereGeometry(500, 60, 40);
+            
+            // Flip the geometry inside out
+            geometry.scale(-1, 1, 1);
+            
+            // Create material with texture
+            const material = new THREE.MeshBasicMaterial({
+                map: texture
+            });
+            
+            // Create mesh
+            sphere = new THREE.Mesh(geometry, material);
+            scene.add(sphere);
+            
+            // Hide placeholder
+            document.getElementById('placeholder').style.display = 'none';
+        }
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = document.getElementById('panoViewer').offsetWidth / 
+                            document.getElementById('panoViewer').offsetHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(document.getElementById('panoViewer').offsetWidth, 
+                            document.getElementById('panoViewer').offsetHeight);
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the scene
+            initScene();
+            
+            // Elements
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const btnLoad = document.getElementById('btnLoad');
+            const btnReset = document.getElementById('btnReset');
+            const spinner = document.getElementById('loadingSpinner');
+            
+            // Event listeners for file upload
+            uploadArea.addEventListener('click', () => fileInput.click());
+            
+            fileInput.addEventListener('change', function() {
+                if (this.files.length > 0) {
+                    uploadStatus.textContent = `Selected: ${this.files[0].name}`;
+                    uploadStatus.className = 'status success';
+                    btnLoad.disabled = false;
+                } else {
+                    uploadStatus.textContent = 'No image selected';
+                    uploadStatus.className = 'status default';
+                    btnLoad.disabled = true;
+                }
+            });
+            
+            // Drag and drop
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = '#4cc9f0';
+                uploadArea.style.background = 'rgba(76, 201, 240, 0.08)';
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                uploadArea.style.background = '';
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                uploadArea.style.background = '';
+                
+                if (e.dataTransfer.files.length) {
+                    fileInput.files = e.dataTransfer.files;
+                    uploadStatus.textContent = `Selected: ${e.dataTransfer.files[0].name}`;
+                    uploadStatus.className = 'status success';
+                    btnLoad.disabled = false;
+                }
+            });
+            
+            // Load button
+            btnLoad.addEventListener('click', () => {
+                if (fileInput.files.length === 0) return;
+                
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                
+                spinner.style.display = 'block';
+                uploadStatus.textContent = `Loading ${file.name}...`;
+                uploadStatus.className = 'status loading';
+                
+                reader.onload = function(event) {
+                    const texture = new THREE.TextureLoader().load(event.target.result, () => {
+                        createPanorama(texture);
+                        spinner.style.display = 'none';
+                        uploadStatus.textContent = `Loaded ${file.name}`;
+                        uploadStatus.className = 'status success';
+                    });
+                };
+                
+                reader.onerror = function() {
+                    spinner.style.display = 'none';
+                    uploadStatus.textContent = `Error loading ${file.name}`;
+                    uploadStatus.className = 'status error';
+                };
+                
+                reader.readAsDataURL(file);
+            });
+            
+            // Reset button
+            btnReset.addEventListener('click', () => {
+                controls.reset();
+            });
+        });
+    </script>
+</body>
+</html>
